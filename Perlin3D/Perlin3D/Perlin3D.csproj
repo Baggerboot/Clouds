@@ -75,6 +75,7 @@
     <Reference Include="System.Net" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CloudLayer.cs" />
     <Compile Include="JMath.cs" />
     <Compile Include="Perlin2D.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

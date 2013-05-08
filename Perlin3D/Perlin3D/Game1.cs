@@ -21,7 +21,11 @@ namespace Perlin3D
 
 		SpriteFont font;
 
-		int offset = 0;
+		CloudLayer alpha = new CloudLayer(64, 48, 800, 480, 1001);
+		CloudLayer beta = new CloudLayer(32, 24, 800, 480, 564);
+		CloudLayer gamma = new CloudLayer(16, 12, 800, 480, 423);
+		CloudLayer delta = new CloudLayer(8, 6, 800, 480, 134);
+		CloudLayer epsilon = new CloudLayer(4, 3, 800, 480, 482);
 
 		Texture2D canvas;
 		Rectangle tracedSize;
@@ -43,10 +47,22 @@ namespace Perlin3D
 		{
 			// TODO: Add your initialization logic here
 
-			lowerBoundMap = GenerateNoiseMap();
 			tracedSize = GraphicsDevice.PresentationParameters.Bounds;
 			canvas = new Texture2D(GraphicsDevice, tracedSize.Width, tracedSize.Height, false, SurfaceFormat.Color);
 			pixels = new UInt32[tracedSize.Width * tracedSize.Height];
+
+			Console.WriteLine("Precalculating frames...");
+			alpha.Precalculate(1);
+			Console.WriteLine("Alpha.");
+			beta.Precalculate(1);
+			Console.WriteLine("Beta.");
+			gamma.Precalculate(1);
+			Console.WriteLine("Gamma.");
+			delta.Precalculate(1);
+			Console.WriteLine("Delta.");
+			epsilon.Precalculate(1);
+			Console.WriteLine("Epsilon.");
+			Console.WriteLine("Done.");
 
 			base.Initialize();
 		}
@@ -85,8 +101,8 @@ namespace Perlin3D
 			if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed)
 				this.Exit();
 
-			
 
+			
 			
 
 			
@@ -94,72 +110,27 @@ namespace Perlin3D
 			base.Update(gameTime);
 		}
 
-		private Random rand = new Random(100);
-		private float[,] lowerBoundMap;
-		private float[,] upperBoundMap;
-
-		private float[,] GenerateNoiseMap(int octave = 64)
-		{
-			int seed = rand.Next(1000);
-			Perlin2D p = new Perlin2D(seed, octave);
-			int xIt = (int)Math.Ceiling(800D / octave);
-			int yIt = (int)Math.Ceiling(480D / octave);
-			float[,] map = new float[xIt*octave, yIt*octave];
-			for (int x = 0; x < xIt; x++) {
-				for (int y = 0; y < yIt; y++) {
-
-					float[,] noises = p.getNoiseLevelsAtOctave(x, y);
-					for (int i = 0; i < octave; i++) {
-						for (int j = 0; j < octave; j++) {
-							float noisef = (noises[i, j]);
-
-							byte noise = (byte)(noisef * 255);
-
-							uint pix = 0xFF000000;
-							pix += (uint)(noise << 16);
-							pix += (uint)(noise << 8);
-							pix += (uint)noise;
-
-							int a = x * octave + i;
-							int b = y * octave + j;
-
-							map[a,b]  = noisef;
-
-						}
-					}
-				}
-			}
-			return map;
-		}
-
-		private int frame;
 		private System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
 
 
 		protected override void Draw(GameTime gameTime)
 		{
-			frame = frame % 120;
-
-
-			GraphicsDevice.Clear(Color.SkyBlue);
+			GraphicsDevice.Clear(Color.DeepSkyBlue);
 
 			GraphicsDevice.Textures[0] = null;
 
 			sw.Start();
-
-			if (frame == 0) {
-				if (upperBoundMap != null) {
-					lowerBoundMap = upperBoundMap;
-				}
-				upperBoundMap = GenerateNoiseMap();
-			}
-
-			
+			alpha.Update();
+			beta.Update();
+			gamma.Update();
+			delta.Update();
+			epsilon.Update();
 			for (int i = 0; i < 800; i++) {
 				for (int j = 0; j < 480; j++) {
-					float interpNoise = JMath.LinInterpolate(lowerBoundMap[i, j], upperBoundMap[i, j], frame / 120F);
 
-					byte cloudCover = (byte)(interpNoise*255);
+					float total = alpha.CurrentNoiseMap[i, j] + 0.5F * beta.CurrentNoiseMap[i, j] + 0.25F * gamma.CurrentNoiseMap[i,j] + 0.125F * delta.CurrentNoiseMap[i,j] + 0.06F * epsilon.CurrentNoiseMap[i,j];
+
+					byte cloudCover = (byte)(total/1.935F*255);
 					if (cloudCover < 128) {
 						cloudCover = 0;
 					} else {
@@ -170,30 +141,8 @@ namespace Perlin3D
 					pixels[j * 800 + i] = (uint)(cloudCover << 24) + 0x00FFFFFF;
 				}
 			}
-
-			/*for (int i = 0; i < 800; i++) {
-				for (int j = 0; j < 480; j++) {
-					// A B G R
-					byte v1 = (byte)Math.Round(p0.getNoiseLevelAtPosition(i + offset, j) * 255);
-					byte v2 = (byte)Math.Round(p1.getNoiseLevelAtPosition(i + offset, j) *127);
-					byte v3 = (byte)Math.Round(p2.getNoiseLevelAtPosition(i + offset, j) * 63);
-					byte v4 = (byte)Math.Round(p3.getNoiseLevelAtPosition(i + offset, j) * 31);
-
-					val = (byte)((v1+v2+v3+v4) / 1.875f);
-
-					uint pix = 0xFF000000;
-					pix += (uint)(val << 16);
-					pix += (uint)(val << 8);
-					pix += (uint)val;
-
-					pixels[j * 800 + i] = pix;
-					//pixels[j * 800 + i] = (uint)(0xFF000000 + (val << 4) + (val << 2) + val);
-				}
-			}*/
-
 			float calctime = sw.ElapsedTicks / (float)System.Diagnostics.Stopwatch.Frequency;
 			sw.Reset();
-			offset++;
 
 			canvas.SetData<UInt32>(pixels, 0, tracedSize.Width * tracedSize.Height);
 
@@ -202,7 +151,6 @@ namespace Perlin3D
 			spriteBatch.DrawString(font, "Calculation time: " + (int) (calctime * 1000) + "ms", new Vector2(25, 25), Color.Red);
 			spriteBatch.End();
 
-			frame++;
 			base.Draw(gameTime);
 		}
 	}

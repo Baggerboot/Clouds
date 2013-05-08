@@ -21,7 +21,7 @@ namespace Perlin3D
 			PI = (float)Math.PI;
 		}
 
-		private static float FastCos(float value)
+		public static float FastCos(float value)
 		{
 			return lookup[(int)(value * 1000)];
 		}
@@ -34,6 +34,15 @@ namespace Perlin3D
 		public static float LinInterpolate(float a, float b, float x)
 		{
 			return a * (1 - x) + b * x;
+		}
+
+		public static float Rand(int seed)
+		{
+			ulong next = unchecked((ulong)seed);
+			next = next * 1103515245 + 12345;
+			uint result = (uint)(next / 65536) % 32768;
+			float ret = result / 32768F;
+			return ret;
 		}
 	}
 }
